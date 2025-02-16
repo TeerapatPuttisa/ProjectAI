@@ -1,0 +1,93 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.svm import SVR
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+file_path = 'dataset.csv'
+df = pd.read_csv(file_path)
+
+
+print(df.head())
+print(df.describe())
+print(df.isnull().sum())
+
+
+print(df.dtypes)
+
+
+for column in df.columns:
+    if df[column].dtype == 'object':  
+        print(f"Converting column: {column}")
+        
+        if df[column].nunique() < 20:  
+            df[column] = df[column].astype('category').cat.codes  
+        else:
+            
+            df = pd.get_dummies(df, columns=[column])
+
+
+df = df.dropna()  
+
+
+correlation_matrix = df.corr()
+plt.figure(figsize=(12, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5)
+plt.title('Correlation Matrix')
+plt.show()
+
+
+features = [
+    'Year', 'Prevalence Rate (%)', 'Incidence Rate (%)', 
+    'Healthcare Access (%)', 'Doctors per 1000', 'Hospital Beds per 1000', 
+    'Average Treatment Cost (USD)', 'Per Capita Income (USD)', 
+    'Education Index', 'Urbanization Rate (%)'
+]
+
+target = 'Prevalence Rate (%)'
+
+
+X = df[features]
+y = df[target]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+
+model = Sequential()
+model.add(Dense(64, input_dim=X_train_scaled.shape[1], activation='relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(1))
+model.compile(optimizer='adam', loss='mean_squared_error')
+model.fit(X_train_scaled, y_train, epochs=100, batch_size=32)
+y_pred = model.predict(X_test_scaled)
+
+
+y_pred = model.predict(X_test_scaled)
+mae = mean_absolute_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print("Mean Absolute Error (MAE):", mae)
+print("R² Score:", r2)
+
+
+plt.scatter(y_test, y_pred)
+plt.xlabel('Actual Prevalence Rate (%)')
+plt.ylabel('Predicted Prevalence Rate (%)')
+plt.title('Actual vs Predicted Prevalence Rate')
+plt.show()
+
+
+feature_target_corr = correlation_matrix[target].sort_values(ascending=False)
+print("\nFeature-Target Correlation:")
+print(feature_target_corr)
